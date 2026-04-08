@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BrandProfile {
+  id              String   @id @default(cuid())
+  name            String
+  description     String   @db.Text
+  targetAudience  String   @db.Text
+  toneOfVoice     String
+  websiteUrl      String
+  instagramHandle String
+  sector          String   @default("Organik Gıda E-Ticaret")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Competitor {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?  @db.Text
+  strengths       String?  @db.Text
+  weaknesses      String?  @db.Text
+  websiteUrl      String
+  instagramHandle String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  icon      String?
+  isDefault Boolean  @default(false)
+  isCustom  Boolean  @default(false)
+  order     Int      @default(0)
+  ideas     Idea[]
+  tasks     Task[]
+  createdAt DateTime @default(now())
+}
+
+model Idea {
+  id            String      @id @default(cuid())
+  title         String
+  description   String      @db.Text
+  detailLevel   DetailLevel
+  categoryId    String
+  category      Category    @relation(fields: [categoryId], references: [id])
+  impactScore   Int?
+  easeScore     Int?
+  priorityScore Float?
+  status        IdeaStatus  @default(ACTIVE)
+  source        IdeaSource  @default(MANUAL)
+  scanReportId  String?
+  scanReport    ScanReport? @relation(fields: [scanReportId], references: [id])
+  task          Task?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+enum DetailLevel {
+  QUICK
+  DETAILED
+  ACTION_PLAN
+}
+
+enum IdeaStatus {
+  ACTIVE
+  ARCHIVED
+  CONVERTED_TO_TASK
+}
+
+enum IdeaSource {
+  MANUAL
+  SCAN_BASED
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  title       String
+  description String?    @db.Text
+  status      TaskStatus @default(TODO)
+  priority    Int?
+  categoryId  String?
+  category    Category?  @relation(fields: [categoryId], references: [id])
+  ideaId      String?    @unique
+  idea        Idea?      @relation(fields: [ideaId], references: [id])
+  order       Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+model ScanReport {
+  id          String     @id @default(cuid())
+  type        ScanType
+  status      ScanStatus @default(RUNNING)
+  summary     String?    @db.Text
+  rawData     Json?
+  insights    Json?
+  ideas       Idea[]
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+}
+
+model ScanEntry {
+  id           String   @id @default(cuid())
+  scanReportId String
+  brandName    String
+  sourceType   String
+  sourceUrl    String
+  rawContent   String?  @db.Text
+  analysis     String?  @db.Text
+  highlights   Json?
+  createdAt    DateTime @default(now())
+}
+
+enum ScanType {
+  MANUAL
+  SCHEDULED
+}
+
+enum ScanStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
