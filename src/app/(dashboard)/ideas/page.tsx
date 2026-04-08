@@ -66,7 +66,7 @@ export default function IdeasPage() {
 
   // Filters
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>("ACTIVE");
+  const [statusFilter, setStatusFilter] = useState<string>("");
   const [sourceFilter, setSourceFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("createdAt");
 
@@ -238,9 +238,10 @@ export default function IdeasPage() {
               </Label>
               <div className="mt-2 space-y-2">
                 {[
+                  { value: "", label: "Tumu" },
                   { value: "ACTIVE", label: "Aktif" },
                   { value: "CONVERTED_TO_TASK", label: "Goreve Donen" },
-                  { value: "", label: "Tumu" },
+                  { value: "ARCHIVED", label: "Arsivlenmis" },
                 ].map((opt) => (
                   <div key={opt.value} className="flex items-center gap-2">
                     <input
@@ -336,7 +337,9 @@ export default function IdeasPage() {
                 <Label className="text-xs">Kategori</Label>
                 <Select value={genCategoryId} onValueChange={(v) => v && setGenCategoryId(v)}>
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Sec..." />
+                    <SelectValue placeholder="Sec...">
+                      {categories.find((c) => c.id === genCategoryId)?.name || "Sec..."}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((c) => (
@@ -470,9 +473,12 @@ function IdeaCard({
     <Card>
       <CardContent className="pt-6 space-y-3">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold text-gray-900 text-sm leading-snug">
+          <Link
+            href={`/ideas/${idea.id}`}
+            className="font-semibold text-gray-900 text-sm leading-snug hover:text-green-700 hover:underline transition-colors"
+          >
             {idea.title}
-          </h3>
+          </Link>
           {idea.priorityScore != null && (
             <Badge
               variant="outline"

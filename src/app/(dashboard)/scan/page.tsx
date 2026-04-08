@@ -2,12 +2,29 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Play, Loader2, ExternalLink, Globe, AtSign } from "lucide-react";
+import {
+  Search,
+  Play,
+  Loader2,
+  ExternalLink,
+  Globe,
+  AtSign,
+  Pencil,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface BrandProfile {
   id: string;
@@ -32,6 +49,11 @@ interface ScanReport {
   completedAt: string | null;
 }
 
+interface EditForm {
+  websiteUrl: string;
+  instagramHandle: string;
+}
+
 const statusLabels: Record<string, { label: string; color: string }> = {
   RUNNING: { label: "Devam Ediyor", color: "bg-yellow-100 text-yellow-700" },
   COMPLETED: { label: "Tamamlandi", color: "bg-green-100 text-green-700" },
@@ -44,6 +66,19 @@ export default function ScanPage() {
   const [reports, setReports] = useState<ScanReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
+
+  // Edit dialog state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<{
+    type: "brand" | "competitor";
+    id: string;
+    name: string;
+  } | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({
+    websiteUrl: "",
+    instagramHandle: "",
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -81,6 +116,81 @@ export default function ScanPage() {
     }
   };
 
+  const openEditDialog = (
+    type: "brand" | "competitor",
+    id: string,
+    name: string,
+    websiteUrl: string,
+    instagramHandle: string
+  ) => {
+    setEditTarget({ type, id, name });
+    setEditForm({ websiteUrl, instagramHandle });
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTarget) return;
+    setSaving(true);
+
+    const url =
+      editTarget.type === "brand"
+        ? "/api/settings/brand"
+        : `/api/settings/competitors/${editTarget.id}`;
+
+    try {
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          websiteUrl: editForm.websiteUrl,
+          instagramHandle: editForm.instagramHandle,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Kaydedilemedi");
+      }
+
+      const updated = await res.json();
+
+      if (editTarget.type === "brand") {
+        setBrand((prev) =>
+          prev
+            ? {
+                ...prev,
+                websiteUrl: updated.websiteUrl ?? editForm.websiteUrl,
+                instagramHandle:
+                  updated.instagramHandle ?? editForm.instagramHandle,
+              }
+            : prev
+        );
+      } else {
+        setCompetitors((prev) =>
+          prev.map((c) =>
+            c.id === editTarget.id
+              ? {
+                  ...c,
+                  websiteUrl: updated.websiteUrl ?? editForm.websiteUrl,
+                  instagramHandle:
+                    updated.instagramHandle ?? editForm.instagramHandle,
+                }
+              : c
+          )
+        );
+      }
+
+      toast.success(`${editTarget.name} basariyla guncellendi`);
+      setEditOpen(false);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Guncelleme basarisiz oldu";
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -104,9 +214,27 @@ export default function ScanPage() {
           {/* Brand */}
           {brand && (
             <div className="p-3 bg-green-50 rounded-lg border border-green-100">
-              <h3 className="font-medium text-sm text-green-800">
-                Marka: {brand.name}
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium text-sm text-green-800">
+                  Marka: {brand.name}
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-green-600 hover:text-green-800 hover:bg-green-100"
+                  onClick={() =>
+                    openEditDialog(
+                      "brand",
+                      brand.id,
+                      brand.name,
+                      brand.websiteUrl,
+                      brand.instagramHandle
+                    )
+                  }
+                >
+                  <Pencil className="h-3 w-3" />
+                </Button>
+              </div>
               <div className="flex gap-4 mt-1 text-xs text-green-600">
                 <span className="flex items-center gap-1">
                   <Globe className="h-3 w-3" />
@@ -132,7 +260,27 @@ export default function ScanPage() {
                     key={c.id}
                     className="p-2 bg-gray-50 rounded-lg border text-sm"
                   >
-                    <span className="font-medium text-gray-800">{c.name}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-800">
+                        {c.name}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                        onClick={() =>
+                          openEditDialog(
+                            "competitor",
+                            c.id,
+                            c.name,
+                            c.websiteUrl,
+                            c.instagramHandle
+                          )
+                        }
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </div>
                     <div className="flex gap-3 mt-1 text-xs text-gray-500">
                       <span className="flex items-center gap-1">
                         <Globe className="h-3 w-3" />
@@ -224,6 +372,79 @@ export default function ScanPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editTarget?.name} - Linkleri Duzenle
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-website" className="flex items-center gap-1.5">
+                <Globe className="h-3.5 w-3.5" />
+                Website URL
+              </Label>
+              <Input
+                id="edit-website"
+                value={editForm.websiteUrl}
+                onChange={(e) =>
+                  setEditForm((prev) => ({
+                    ...prev,
+                    websiteUrl: e.target.value,
+                  }))
+                }
+                placeholder="https://example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-instagram"
+                className="flex items-center gap-1.5"
+              >
+                <AtSign className="h-3.5 w-3.5" />
+                Instagram Handle
+              </Label>
+              <Input
+                id="edit-instagram"
+                value={editForm.instagramHandle}
+                onChange={(e) =>
+                  setEditForm((prev) => ({
+                    ...prev,
+                    instagramHandle: e.target.value,
+                  }))
+                }
+                placeholder="@handle"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setEditOpen(false)}
+              disabled={saving}
+            >
+              Vazgec
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={saving}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Kaydediliyor...
+                </>
+              ) : (
+                "Kaydet"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
