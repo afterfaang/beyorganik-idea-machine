@@ -67,8 +67,25 @@ SADECE JSON formatında yanıt ver, başka hiçbir şey ekleme.`;
   });
 
   const text = message.content[0].type === "text" ? message.content[0].text : "";
-  const parsed = JSON.parse(text);
+  const parsed = safeParseJSON(text);
   return parsed.ideas as { title: string; description: string }[];
+}
+
+function safeParseJSON(text: string) {
+  // Try direct parse first
+  try { return JSON.parse(text); } catch {}
+  // Try extracting JSON from markdown code block
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    try { return JSON.parse(codeBlockMatch[1].trim()); } catch {}
+  }
+  // Try finding first { to last }
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start !== -1 && end !== -1 && end > start) {
+    try { return JSON.parse(text.slice(start, end + 1)); } catch {}
+  }
+  throw new Error("Could not parse JSON from AI response");
 }
 
 export async function analyzeScanData(params: {
@@ -124,5 +141,5 @@ SADECE JSON formatında yanıt ver.`;
   });
 
   const text = message.content[0].type === "text" ? message.content[0].text : "";
-  return JSON.parse(text);
+  return safeParseJSON(text);
 }
